@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap');
+
+@import "tailwindcss";
+
+@theme inline {
+  --color-background: #FAFAF8;
+  --color-foreground: #1A1A1A;
+
+  --color-gallery-text: #1A1A1A;
+  --color-gallery-muted: #6B6B6B;
+  --color-gallery-accent: #2C2C2C;
+  --color-gallery-accent-hover: #4A4A4A;
+  --color-gallery-border: #E5E3DF;
+  --color-gallery-card: #FFFFFF;
+  --color-gallery-subtle: #F0EFEB;
+  --color-gallery-bg: #FAFAF8;
+
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-gallery-bg);
+  color: var(--color-gallery-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hide scrollbar for horizontal scroll containers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Smooth image loading */
+img {
+  transition: opacity 0.3s ease;
+}
+
+/* Selection styling */
+::selection {
+  background-color: #1A1A1A;
+  color: #FAFAF8;
+}
+
+/* Focus styling */
+:focus-visible {
+  outline: 2px solid #2C2C2C;
+  outline-offset: 2px;
+}
