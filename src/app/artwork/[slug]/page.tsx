@@ -6,8 +6,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getArtworkBySlug, getArtworksByArtist } from "@/data/artworks";
 import { getArtistById } from "@/data/artists";
+import { getArtworkRating, submitRating, ArtworkRating } from "@/data/ratings";
 import { useCart } from "@/context/CartContext";
 import ArtworkCard from "@/components/ArtworkCard";
+import StarRating from "@/components/StarRating";
 import { Artwork, Artist } from "@/types";
 
 export default function ArtworkDetailPage({
@@ -20,6 +22,7 @@ export default function ArtworkDetailPage({
   const [artwork, setArtwork] = useState<Artwork | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [moreByArtist, setMoreByArtist] = useState<Artwork[]>([]);
+  const [rating, setRating] = useState<ArtworkRating>({ averageRating: 0, totalRatings: 0 });
   const [loading, setLoading] = useState(true);
   const [notFoundState, setNotFoundState] = useState(false);
 
@@ -32,13 +35,15 @@ export default function ArtworkDetailPage({
       }
       setArtwork(art);
 
-      const [artistData, relatedWorks] = await Promise.all([
+      const [artistData, relatedWorks, ratingData] = await Promise.all([
         getArtistById(art.artistId),
         getArtworksByArtist(art.artistId),
+        getArtworkRating(art.id),
       ]);
 
       setArtist(artistData ?? null);
       setMoreByArtist(relatedWorks.filter((a) => a.id !== art.id));
+      setRating(ratingData);
       setLoading(false);
     }
 
@@ -59,6 +64,15 @@ export default function ArtworkDetailPage({
 
   const handleAddToCart = () => {
     addItem(artwork);
+  };
+
+  const handleRate = async (stars: number) => {
+    if (!artwork) return;
+    const success = await submitRating(artwork.id, stars);
+    if (success) {
+      const updated = await getArtworkRating(artwork.id);
+      setRating(updated);
+    }
   };
 
   return (
@@ -123,6 +137,17 @@ export default function ArtworkDetailPage({
             <p className="font-serif text-3xl text-gallery-text">
               ${artwork.price.toLocaleString()}
             </p>
+
+            {/* Rating */}
+            <div className="py-2">
+              <StarRating
+                averageRating={rating.averageRating}
+                totalRatings={rating.totalRatings}
+                onRate={handleRate}
+                interactive
+                size="lg"
+              />
+            </div>
 
             <div className="space-y-3">
               <button
