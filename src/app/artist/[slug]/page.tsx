@@ -1,9 +1,12 @@
-import { use } from "react";
+"use client";
+
+import { use, useState, useEffect } from "react";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { getArtistBySlug } from "@/data/artists";
 import { getArtworksByArtist } from "@/data/artworks";
 import ArtworkGrid from "@/components/ArtworkGrid";
+import { Artist, Artwork } from "@/types";
 
 export default function ArtistProfilePage({
   params,
@@ -11,13 +14,39 @@ export default function ArtistProfilePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const artist = getArtistBySlug(slug);
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [works, setWorks] = useState<Artwork[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFoundState, setNotFoundState] = useState(false);
 
-  if (!artist) {
+  useEffect(() => {
+    async function loadData() {
+      const artistData = await getArtistBySlug(slug);
+      if (!artistData) {
+        setNotFoundState(true);
+        return;
+      }
+      setArtist(artistData);
+
+      const artistWorks = await getArtworksByArtist(artistData.id);
+      setWorks(artistWorks);
+      setLoading(false);
+    }
+
+    loadData();
+  }, [slug]);
+
+  if (notFoundState) {
     notFound();
   }
 
-  const works = getArtworksByArtist(artist.id);
+  if (loading || !artist) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-gallery-muted">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

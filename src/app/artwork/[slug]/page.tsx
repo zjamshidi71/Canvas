@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -8,6 +8,7 @@ import { getArtworkBySlug, getArtworksByArtist } from "@/data/artworks";
 import { getArtistById } from "@/data/artists";
 import { useCart } from "@/context/CartContext";
 import ArtworkCard from "@/components/ArtworkCard";
+import { Artwork, Artist } from "@/types";
 
 export default function ArtworkDetailPage({
   params,
@@ -15,17 +16,46 @@ export default function ArtworkDetailPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const artwork = getArtworkBySlug(slug);
   const { addItem } = useCart();
+  const [artwork, setArtwork] = useState<Artwork | null>(null);
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [moreByArtist, setMoreByArtist] = useState<Artwork[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFoundState, setNotFoundState] = useState(false);
 
-  if (!artwork) {
+  useEffect(() => {
+    async function loadData() {
+      const art = await getArtworkBySlug(slug);
+      if (!art) {
+        setNotFoundState(true);
+        return;
+      }
+      setArtwork(art);
+
+      const [artistData, relatedWorks] = await Promise.all([
+        getArtistById(art.artistId),
+        getArtworksByArtist(art.artistId),
+      ]);
+
+      setArtist(artistData ?? null);
+      setMoreByArtist(relatedWorks.filter((a) => a.id !== art.id));
+      setLoading(false);
+    }
+
+    loadData();
+  }, [slug]);
+
+  if (notFoundState) {
     notFound();
   }
 
-  const artist = getArtistById(artwork.artistId);
-  const moreByArtist = getArtworksByArtist(artwork.artistId).filter(
-    (a) => a.id !== artwork.id
-  );
+  if (loading || !artwork) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-gallery-muted">Loading…</div>
+      </div>
+    );
+  }
 
   const handleAddToCart = () => {
     addItem(artwork);
@@ -139,7 +169,7 @@ export default function ArtworkDetailPage({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {moreByArtist.slice(0, 3).map((a) => (
-                <ArtworkCard key={a.id} artwork={a} />
+                <ArtworkCard key={a.id} artwork={a} artistName={artist?.name} />
               ))}
             </div>
           </section>

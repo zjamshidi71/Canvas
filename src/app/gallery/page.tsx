@@ -1,15 +1,25 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { artworks } from "@/data/artworks";
+import { useState, useEffect, useMemo } from "react";
+import { getArtworks } from "@/data/artworks";
+import { Artwork } from "@/types";
 import ArtworkGrid from "@/components/ArtworkGrid";
 import FilterBar from "@/components/FilterBar";
 
 export default function GalleryPage() {
+  const [artworks, setArtworks] = useState<Artwork[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedMediums, setSelectedMediums] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState("newest");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 50000]);
   const [showFilters, setShowFilters] = useState(false);
+
+  useEffect(() => {
+    getArtworks().then((data) => {
+      setArtworks(data);
+      setLoading(false);
+    });
+  }, []);
 
   const filteredArtworks = useMemo(() => {
     let result = [...artworks];
@@ -39,11 +49,19 @@ export default function GalleryPage() {
     }
 
     return result;
-  }, [selectedMediums, sortBy, priceRange]);
+  }, [artworks, selectedMediums, sortBy, priceRange]);
 
   const activeFilterCount =
     selectedMediums.length +
     (priceRange[0] > 0 || priceRange[1] < 50000 ? 1 : 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-gallery-muted">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

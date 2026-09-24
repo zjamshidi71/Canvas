@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Artwork } from "@/types";
@@ -7,17 +8,29 @@ import { getArtistById } from "@/data/artists";
 
 interface ArtworkCardProps {
   artwork: Artwork;
+  artistName?: string;
   priority?: boolean;
 }
 
-export default function ArtworkCard({ artwork, priority = false }: ArtworkCardProps) {
-  const artist = getArtistById(artwork.artistId);
+export default function ArtworkCard({
+  artwork,
+  artistName,
+  priority = false,
+}: ArtworkCardProps) {
+  const [resolvedArtistName, setResolvedArtistName] = useState(
+    artistName ?? ""
+  );
+
+  useEffect(() => {
+    if (!artistName) {
+      getArtistById(artwork.artistId).then((artist) => {
+        if (artist) setResolvedArtistName(artist.name);
+      });
+    }
+  }, [artwork.artistId, artistName]);
 
   return (
-    <Link
-      href={`/artwork/${artwork.slug}`}
-      className="group block"
-    >
+    <Link href={`/artwork/${artwork.slug}`} className="group block">
       <div className="relative aspect-[4/5] overflow-hidden bg-gallery-subtle rounded-sm">
         <Image
           src={artwork.imageUrl}
@@ -32,9 +45,7 @@ export default function ArtworkCard({ artwork, priority = false }: ArtworkCardPr
         <h3 className="font-serif text-lg text-gallery-text group-hover:opacity-70 transition-opacity">
           {artwork.title}
         </h3>
-        <p className="text-sm text-gallery-muted">
-          {artist?.name}
-        </p>
+        <p className="text-sm text-gallery-muted">{resolvedArtistName}</p>
         <p className="text-sm text-gallery-text font-medium">
           ${artwork.price.toLocaleString()}
         </p>

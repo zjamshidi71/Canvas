@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
@@ -7,6 +8,27 @@ import { getArtistById } from "@/data/artists";
 
 export default function CartPage() {
   const { items, removeItem, updateQuantity, subtotal, totalItems } = useCart();
+  const [artistNames, setArtistNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    async function loadArtistNames() {
+      const names: Record<string, string> = {};
+      const uniqueArtistIds = [
+        ...new Set(items.map((item) => item.artwork.artistId)),
+      ];
+      await Promise.all(
+        uniqueArtistIds.map(async (id) => {
+          const artist = await getArtistById(id);
+          if (artist) names[id] = artist.name;
+        })
+      );
+      setArtistNames(names);
+    }
+
+    if (items.length > 0) {
+      loadArtistNames();
+    }
+  }, [items]);
 
   if (items.length === 0) {
     return (
@@ -53,7 +75,7 @@ export default function CartPage() {
         {/* Cart items */}
         <div className="space-y-0">
           {items.map((item) => {
-            const artist = getArtistById(item.artwork.artistId);
+            const artistName = artistNames[item.artwork.artistId] ?? "";
             return (
               <div
                 key={item.artwork.id}
@@ -83,7 +105,7 @@ export default function CartPage() {
                       {item.artwork.title}
                     </Link>
                     <p className="text-sm text-gallery-muted mt-0.5">
-                      {artist?.name} · {item.artwork.medium}
+                      {artistName} · {item.artwork.medium}
                     </p>
                   </div>
 

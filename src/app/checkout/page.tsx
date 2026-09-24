@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import { getArtistById } from "@/data/artists";
 export default function CheckoutPage() {
   const { items, subtotal, completeCheckout } = useCart();
   const router = useRouter();
+  const [artistNames, setArtistNames] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     firstName: "",
@@ -23,6 +24,26 @@ export default function CheckoutPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function loadArtistNames() {
+      const names: Record<string, string> = {};
+      const uniqueArtistIds = [
+        ...new Set(items.map((item) => item.artwork.artistId)),
+      ];
+      await Promise.all(
+        uniqueArtistIds.map(async (id) => {
+          const artist = await getArtistById(id);
+          if (artist) names[id] = artist.name;
+        })
+      );
+      setArtistNames(names);
+    }
+
+    if (items.length > 0) {
+      loadArtistNames();
+    }
+  }, [items]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -178,7 +199,8 @@ export default function CheckoutPage() {
 
               <div className="space-y-4 mb-6">
                 {items.map((item) => {
-                  const artist = getArtistById(item.artwork.artistId);
+                  const artistName =
+                    artistNames[item.artwork.artistId] ?? "";
                   return (
                     <div key={item.artwork.id} className="flex gap-3">
                       <div className="relative w-16 h-20 shrink-0 overflow-hidden bg-gallery-card rounded-sm">
@@ -200,7 +222,7 @@ export default function CheckoutPage() {
                           {item.artwork.title}
                         </p>
                         <p className="text-xs text-gallery-muted">
-                          {artist?.name}
+                          {artistName}
                         </p>
                       </div>
                       <p className="text-sm text-gallery-text shrink-0">

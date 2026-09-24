@@ -1,4 +1,6 @@
-import { use } from "react";
+"use client";
+
+import { use, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -6,6 +8,7 @@ import { getEditorialBySlug } from "@/data/editorial";
 import { getArtistById } from "@/data/artists";
 import { getArtworksByArtist } from "@/data/artworks";
 import ArtworkCard from "@/components/ArtworkCard";
+import { EditorialArticle, Artist, Artwork } from "@/types";
 
 export default function StoryPage({
   params,
@@ -13,14 +16,46 @@ export default function StoryPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const editorial = getEditorialBySlug(slug);
+  const [editorial, setEditorial] = useState<EditorialArticle | null>(null);
+  const [artist, setArtist] = useState<Artist | null>(null);
+  const [artistWorks, setArtistWorks] = useState<Artwork[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [notFoundState, setNotFoundState] = useState(false);
 
-  if (!editorial) {
+  useEffect(() => {
+    async function loadData() {
+      const ed = await getEditorialBySlug(slug);
+      if (!ed) {
+        setNotFoundState(true);
+        return;
+      }
+      setEditorial(ed);
+
+      const artistData = await getArtistById(ed.relatedArtistId);
+      setArtist(artistData ?? null);
+
+      if (artistData) {
+        const works = await getArtworksByArtist(artistData.id);
+        setArtistWorks(works.slice(0, 3));
+      }
+
+      setLoading(false);
+    }
+
+    loadData();
+  }, [slug]);
+
+  if (notFoundState) {
     notFound();
   }
 
-  const artist = getArtistById(editorial.relatedArtistId);
-  const artistWorks = artist ? getArtworksByArtist(artist.id).slice(0, 3) : [];
+  if (loading || !editorial) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-pulse text-gallery-muted">Loading…</div>
+      </div>
+    );
+  }
 
   return (
     <article className="min-h-screen">
@@ -98,7 +133,7 @@ export default function StoryPage({
             {artistWorks.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 max-w-4xl mx-auto">
                 {artistWorks.map((work) => (
-                  <ArtworkCard key={work.id} artwork={work} />
+                  <ArtworkCard key={work.id} artwork={work} artistName={artist.name} />
                 ))}
               </div>
             )}
