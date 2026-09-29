@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
 
 export default function Navbar() {
   const { totalItems } = useCart();
+  const { user, loading: authLoading, signOut } = useAuth();
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -27,6 +29,12 @@ export default function Navbar() {
     { href: "/gallery", label: "Gallery" },
     { href: "/stories/the-weight-of-lightness", label: "Stories" },
   ];
+
+  // Get display name from user metadata or fallback to email
+  const displayName =
+    user?.user_metadata?.full_name ||
+    user?.email?.split("@")[0] ||
+    "Account";
 
   return (
     <header
@@ -76,6 +84,37 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
+
+            {/* Auth section */}
+            {!authLoading && (
+              <>
+                {user ? (
+                  <div className="flex items-center gap-4 ml-2 pl-4 border-l border-gallery-border">
+                    <span className="text-sm text-gallery-muted truncate max-w-[120px]">
+                      {displayName}
+                    </span>
+                    <button
+                      id="nav-signout"
+                      onClick={() => signOut()}
+                      className="text-xs uppercase tracking-widest text-gallery-muted hover:text-gallery-text transition-colors"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                ) : (
+                  <Link
+                    href="/login"
+                    className={`text-sm tracking-wide uppercase transition-colors duration-200 ml-2 pl-4 border-l border-gallery-border ${
+                      pathname === "/login"
+                        ? "text-gallery-text"
+                        : "text-gallery-muted hover:text-gallery-text"
+                    }`}
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -128,6 +167,36 @@ export default function Navbar() {
               >
                 Cart {totalItems > 0 && `(${totalItems})`}
               </Link>
+
+              {/* Mobile Auth */}
+              {!authLoading && (
+                <div className="pt-3 mt-1 border-t border-gallery-border">
+                  {user ? (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gallery-muted">
+                        {displayName}
+                      </span>
+                      <button
+                        onClick={() => signOut()}
+                        className="text-xs uppercase tracking-widest text-gallery-muted hover:text-gallery-text transition-colors"
+                      >
+                        Sign Out
+                      </button>
+                    </div>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className={`text-sm tracking-wide uppercase ${
+                        pathname === "/login"
+                          ? "text-gallery-text"
+                          : "text-gallery-muted"
+                      }`}
+                    >
+                      Sign In
+                    </Link>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
