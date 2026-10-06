@@ -3,11 +3,12 @@
 import { use, useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getArtworkBySlug, getArtworksByArtist } from "@/data/artworks";
+import { useRouter, notFound } from "next/navigation";
+import { getArtworkBySlug, getArtworksByArtist, deleteArtwork } from "@/data/artworks";
 import { getArtistById } from "@/data/artists";
 import { getArtworkRating, submitRating, ArtworkRating } from "@/data/ratings";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import ArtworkCard from "@/components/ArtworkCard";
 import StarRating from "@/components/StarRating";
 import { Artwork, Artist } from "@/types";
@@ -19,12 +20,16 @@ export default function ArtworkDetailPage({
 }) {
   const { slug } = use(params);
   const { addItem } = useCart();
+  const { user } = useAuth();
+  const router = useRouter();
   const [artwork, setArtwork] = useState<Artwork | null>(null);
   const [artist, setArtist] = useState<Artist | null>(null);
   const [moreByArtist, setMoreByArtist] = useState<Artwork[]>([]);
   const [rating, setRating] = useState<ArtworkRating>({ averageRating: 0, totalRatings: 0 });
   const [loading, setLoading] = useState(true);
   const [notFoundState, setNotFoundState] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -72,6 +77,22 @@ export default function ArtworkDetailPage({
     if (success) {
       const updated = await getArtworkRating(artwork.id);
       setRating(updated);
+    }
+  };
+
+  // Check if the current logged-in user is the owner of this artwork
+  const isOwner = user && artwork && user.id === artwork.artistId;
+
+  const handleDelete = async () => {
+    if (!artwork) return;
+    setDeleting(true);
+    const result = await deleteArtwork(artwork.id);
+    if (result.success) {
+      router.push("/gallery");
+    } else {
+      alert(result.error || "Failed to delete artwork.");
+      setDeleting(false);
+      setShowDeleteModal(false);
     }
   };
 
@@ -165,6 +186,27 @@ export default function ArtworkDetailPage({
               </Link>
             </div>
 
+            {/* Owner-only: Edit & Delete controls */}
+            {isOwner && (
+              <div className="pt-4 border-t border-gallery-border space-y-3">
+                <p className="text-xs uppercase tracking-widest text-gallery-muted mb-1">
+                  Manage Your Listing
+                </p>
+                <Link
+                  href={`/artwork/${slug}/edit`}
+                  className="block w-full py-3 text-center border border-gallery-accent text-gallery-accent text-sm uppercase tracking-widest hover:bg-gallery-accent hover:text-white transition-colors"
+                >
+                  Edit Artwork
+                </Link>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="w-full py-3 text-center border border-red-400 text-red-500 text-sm uppercase tracking-widest hover:bg-red-500 hover:text-white transition-colors"
+                >
+                  Delete Artwork
+                </button>
+              </div>
+            )}
+
             <div className="pt-4">
               <h2 className="text-xs uppercase tracking-widest text-gallery-muted mb-3">
                 About This Work
@@ -200,6 +242,37 @@ export default function ArtworkDetailPage({
           </section>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="bg-white max-w-md w-full mx-6 p-8 rounded-sm shadow-xl">
+            <h3 className="font-serif text-2xl text-gallery-text mb-3">
+              Delete This Artwork?
+            </h3>
+            <p className="text-gallery-muted text-sm leading-relaxed mb-6">
+              This will permanently remove &ldquo;{artwork.title}&rdquo; from
+              Canvas. This action cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                disabled={deleting}
+                className="flex-1 py-3 border border-gallery-border text-gallery-text text-sm uppercase tracking-widest hover:bg-gallery-subtle transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 py-3 bg-red-500 text-white text-sm uppercase tracking-widest hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {deleting ? "Deleting…" : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

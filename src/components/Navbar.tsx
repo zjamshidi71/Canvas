@@ -13,6 +13,9 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Admin email allowlist — must match the list in /admin/page.tsx
+  const isAdmin = user && ["admin@canvas.art", "zjamshidi@mtroyal.ca"].includes(user.email ?? "");
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -84,6 +87,48 @@ export default function Navbar() {
                 </span>
               )}
             </Link>
+
+            {/* List Artwork — only visible when signed in */}
+            {!authLoading && user && (
+              <Link
+                href="/artwork/new"
+                className={`text-sm tracking-wide uppercase transition-colors duration-200 ${
+                  pathname === "/artwork/new"
+                    ? "text-gallery-text"
+                    : "text-gallery-muted hover:text-gallery-text"
+                }`}
+              >
+                List Artwork
+              </Link>
+            )}
+
+            {/* My Listings — only visible when signed in */}
+            {!authLoading && user && (
+              <Link
+                href="/dashboard"
+                className={`text-sm tracking-wide uppercase transition-colors duration-200 ${
+                  pathname === "/dashboard"
+                    ? "text-gallery-text"
+                    : "text-gallery-muted hover:text-gallery-text"
+                }`}
+              >
+                My Listings
+              </Link>
+            )}
+
+            {/* Admin — only visible to admin users */}
+            {!authLoading && isAdmin && (
+              <Link
+                href="/admin"
+                className={`text-sm tracking-wide uppercase transition-colors duration-200 ${
+                  pathname === "/admin"
+                    ? "text-gallery-text"
+                    : "text-gallery-muted hover:text-gallery-text"
+                }`}
+              >
+                Admin
+              </Link>
+            )}
 
             {/* Auth section */}
             {!authLoading && (
@@ -167,6 +212,48 @@ export default function Navbar() {
               >
                 Cart {totalItems > 0 && `(${totalItems})`}
               </Link>
+
+              {/* List Artwork — mobile, only when signed in */}
+              {!authLoading && user && (
+                <Link
+                  href="/artwork/new"
+                  className={`text-sm tracking-wide uppercase ${
+                    pathname === "/artwork/new"
+                      ? "text-gallery-text"
+                      : "text-gallery-muted"
+                  }`}
+                >
+                  List Artwork
+                </Link>
+              )}
+
+              {/* My Listings — mobile, only when signed in */}
+              {!authLoading && user && (
+                <Link
+                  href="/dashboard"
+                  className={`text-sm tracking-wide uppercase ${
+                    pathname === "/dashboard"
+                      ? "text-gallery-text"
+                      : "text-gallery-muted"
+                  }`}
+                >
+                  My Listings
+                </Link>
+              )}
+
+              {/* Admin — mobile, only for admin users */}
+              {!authLoading && isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`text-sm tracking-wide uppercase ${
+                    pathname === "/admin"
+                      ? "text-gallery-text"
+                      : "text-gallery-muted"
+                  }`}
+                >
+                  Admin
+                </Link>
+              )}
 
               {/* Mobile Auth */}
               {!authLoading && (
