@@ -5,10 +5,13 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/context/AuthContext";
 import { getArtistById } from "@/data/artists";
+import { createOrder } from "@/data/orders";
 
 export default function CheckoutPage() {
   const { items, subtotal, completeCheckout } = useCart();
+  const { user } = useAuth();
   const router = useRouter();
   const [artistNames, setArtistNames] = useState<Record<string, string>>({});
 
@@ -24,6 +27,7 @@ export default function CheckoutPage() {
   });
 
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadArtistNames() {
@@ -49,15 +53,51 @@ export default function CheckoutPage() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ---------------------------------------------------------------------------
+  // handleSubmit — the core of this feature.
+  //
+  // Previously this used a fake setTimeout. Now it:
+  //   1. Calls createOrder() to save the order to the database
+  //   2. Only redirects to /confirmation if the save succeeds
+  //   3. Shows an error to the user if something goes wrong
+  //
+  // Teaching note: notice we check result.error BEFORE calling
+  // completeCheckout(). If the database fails, we do NOT clear the cart
+  // or navigate away — we let the user try again.
+  // ---------------------------------------------------------------------------
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
+    setSubmitError(null);
 
-    // Simulate processing delay
-    setTimeout(() => {
-      completeCheckout();
-      router.push("/checkout/confirmation");
-    }, 1500);
+    const result = await createOrder({
+      userId: user?.id ?? null,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      address: form.address,
+      city: form.city,
+      state: form.state,
+      zip: form.zip,
+      country: form.country,
+      items,
+      subtotal,
+    });
+
+    if (result.error || !result.order) {
+      // Something went wrong — tell the user and let them try again.
+      // The cart is NOT cleared because no order was saved.
+      setSubmitError(
+        result.error ?? "Something went wrong. Please try again."
+      );
+      setSubmitting(false);
+      return;
+    }
+
+    // Success — the order is now saved in the database.
+    // Pass the real order number (from the DB) to the cart context.
+    completeCheckout(result.order.orderNumber);
+    router.push("/checkout/confirmation");
   };
 
   if (items.length === 0) {
@@ -177,15 +217,21 @@ export default function CheckoutPage() {
             </div>
 
             <div className="pt-4 border-t border-gallery-border">
+              {/* Error message — shown if the database save fails */}
+              {submitError && (
+                <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-sm">
+                  {submitError}
+                </div>
+              )}
               <p className="text-sm text-gallery-muted mb-4">
-                This is a mock checkout — no payment will be processed.
+                This is a demo checkout — no payment will be processed.
               </p>
               <button
                 type="submit"
                 disabled={submitting}
                 className="w-full py-4 bg-gallery-text text-white text-sm uppercase tracking-widest hover:bg-gallery-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Processing…" : "Place Order"}
+                {submitting ? "Saving order…" : "Place Order"}
               </button>
             </div>
           </form>

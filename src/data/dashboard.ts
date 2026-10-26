@@ -9,6 +9,7 @@ export interface DashboardStats {
   totalArtworks: number;
   totalArtists: number;
   totalRatings: number;
+  totalOrders: number;
   averagePrice: number;
   highestPrice: number;
   mediumBreakdown: { medium: string; count: number }[];
@@ -19,15 +20,17 @@ export interface DashboardStats {
  * We run multiple queries in parallel with Promise.all for speed.
  */
 export async function getDashboardStats(): Promise<DashboardStats> {
-  const [artworksRes, artistsRes, ratingsRes] = await Promise.all([
+  const [artworksRes, artistsRes, ratingsRes, ordersRes] = await Promise.all([
     supabase.from("artworks").select("*"),
     supabase.from("artists").select("id"),
     supabase.from("artwork_ratings").select("total_ratings"),
+    supabase.from("orders").select("id", { count: "exact", head: true }),
   ]);
 
   const artworks = artworksRes.data ?? [];
   const artists = artistsRes.data ?? [];
   const ratings = ratingsRes.data ?? [];
+  const totalOrders = ordersRes.count ?? 0;
 
   // Calculate price stats
   const prices = artworks.map((a) => Number(a.price));
@@ -57,6 +60,7 @@ export async function getDashboardStats(): Promise<DashboardStats> {
     totalArtworks: artworks.length,
     totalArtists: artists.length,
     totalRatings,
+    totalOrders,
     averagePrice,
     highestPrice,
     mediumBreakdown,

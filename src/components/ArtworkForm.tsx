@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Artwork } from "@/types";
 import { ArtworkInput } from "@/data/artworks";
+import ImageUploadField from "@/components/ImageUploadField";
 
 // ---------------------------------------------------------------------------
 // Props:
@@ -59,7 +60,7 @@ export default function ArtworkForm({
       return setError("Enter a valid price.");
     if (!year || isNaN(Number(year)))
       return setError("Enter a valid year.");
-    if (!imageUrl.trim()) return setError("Image URL is required.");
+    if (!imageUrl.trim()) return setError("Please upload an image for this artwork.");
 
     setSubmitting(true);
 
@@ -182,33 +183,24 @@ export default function ArtworkForm({
         </div>
       </div>
 
-      {/* Image URL */}
+      {/* Image Upload */}
       <div>
-        <label htmlFor="artwork-image" className={labelClass}>
-          Image URL *
-        </label>
-        <input
-          id="artwork-image"
-          type="url"
-          value={imageUrl}
-          onChange={(e) => setImageUrl(e.target.value)}
-          placeholder="https://example.com/image.jpg"
-          className={inputClass}
-          required
+        <label className={labelClass}>Artwork Image *</label>
+        {/*
+          ImageUploadField handles the full upload flow:
+            1. User picks a file
+            2. Component shows a local preview immediately
+            3. File is uploaded to Supabase Storage
+            4. onUploadComplete is called with the permanent public URL
+            5. We store that URL in our imageUrl state
+
+          The parent (this form) doesn't need to know HOW the upload works —
+          it just receives the final URL via the callback.
+        */}
+        <ImageUploadField
+          currentUrl={imageUrl}
+          onUploadComplete={(url) => setImageUrl(url)}
         />
-        {imageUrl && (
-          <div className="mt-3 relative aspect-video max-w-xs overflow-hidden rounded-sm bg-gallery-subtle">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt="Preview"
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = "none";
-              }}
-            />
-          </div>
-        )}
       </div>
 
       {/* Collections (tags) */}

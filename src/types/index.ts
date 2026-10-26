@@ -37,3 +37,35 @@ export interface EditorialArticle {
   pullQuote?: string;
   relatedArtistId: string;
 }
+
+// ---------------------------------------------------------------------------
+// Order types — mirror the `orders` and `order_items` database tables
+// ---------------------------------------------------------------------------
+
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  artworkId: string;
+  title: string;
+  price: number;
+  quantity: number;
+}
+
+export interface Order {
+  id: string;
+  orderNumber: string;
+  userId: string | null;
+  firstName: string;
+  lastName: string;
+  email: string;
+  address: string;
+  city: string;
+  state: string;
+  zip: string;
+  country: string;
+  subtotal: number;
+  // status is a union type — TypeScript will error if an invalid value is used
+  status: "pending" | "confirmed" | "shipped" | "delivered";
+  createdAt: string;
+  items?: OrderItem[];  // populated when fetching a single order with its line items
+}

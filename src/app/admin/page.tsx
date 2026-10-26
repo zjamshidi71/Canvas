@@ -7,7 +7,8 @@ import { useAuth } from "@/context/AuthContext";
 import { getArtworks, deleteArtwork } from "@/data/artworks";
 import { getArtists } from "@/data/artists";
 import { getDashboardStats, DashboardStats } from "@/data/dashboard";
-import { Artwork, Artist } from "@/types";
+import { getAllOrders } from "@/data/orders";
+import { Artwork, Artist, Order } from "@/types";
 
 // ---------------------------------------------------------------------------
 // Hard-coded admin email(s). In production you'd use a "role" column in your
@@ -21,8 +22,9 @@ export default function AdminPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [artworks, setArtworks] = useState<Artwork[]>([]);
   const [artists, setArtists] = useState<Artist[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "artworks" | "artists">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "artworks" | "artists" | "orders">("overview");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<Artwork | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -31,14 +33,16 @@ export default function AdminPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [statsData, artworksData, artistsData] = await Promise.all([
+    const [statsData, artworksData, artistsData, ordersData] = await Promise.all([
       getDashboardStats(),
       getArtworks(),
       getArtists(),
+      getAllOrders(),
     ]);
     setStats(statsData);
     setArtworks(artworksData);
     setArtists(artistsData);
+    setOrders(ordersData);
     setLoading(false);
   }, []);
 
@@ -137,7 +141,7 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-8 border-b border-gallery-border">
-          {(["overview", "artworks", "artists"] as const).map((tab) => (
+          {(["overview", "artworks", "artists", "orders"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -193,6 +197,17 @@ export default function AdminPage() {
                     icon={
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                         <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    }
+                  />
+                  <StatCard
+                    label="Total Orders"
+                    value={stats.totalOrders.toString()}
+                    icon={
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                        <line x1="3" y1="6" x2="21" y2="6" />
+                        <path d="M16 10a4 4 0 0 1-8 0" />
                       </svg>
                     }
                   />
@@ -270,10 +285,10 @@ export default function AdminPage() {
                       Manage Artworks
                     </button>
                     <button
-                      onClick={() => setActiveTab("artists")}
+                      onClick={() => setActiveTab("orders")}
                       className="py-3 px-4 border border-gallery-border text-center text-sm text-gallery-text uppercase tracking-widest hover:bg-gallery-subtle transition-colors"
                     >
-                      View Artists
+                      View Orders
                     </button>
                   </div>
                 </div>
@@ -438,6 +453,93 @@ export default function AdminPage() {
                     No artists found.
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ====== ORDERS TAB ====== */}
+            {activeTab === "orders" && (
+              <div>
+                <div className="flex items-center justify-between mb-6">
+                  <p className="text-sm text-gallery-muted">
+                    {orders.length} order{orders.length !== 1 ? "s" : ""} total
+                  </p>
+                </div>
+                <div className="bg-white border border-gallery-border rounded-sm overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gallery-border bg-gallery-subtle/50">
+                          <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gallery-muted font-medium">
+                            Order #
+                          </th>
+                          <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gallery-muted font-medium">
+                            Buyer
+                          </th>
+                          <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gallery-muted font-medium hidden md:table-cell">
+                            Email
+                          </th>
+                          <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gallery-muted font-medium hidden lg:table-cell">
+                            City
+                          </th>
+                          <th className="text-right px-4 py-3 text-xs uppercase tracking-widest text-gallery-muted font-medium">
+                            Total
+                          </th>
+                          <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gallery-muted font-medium hidden sm:table-cell">
+                            Status
+                          </th>
+                          <th className="text-left px-4 py-3 text-xs uppercase tracking-widest text-gallery-muted font-medium hidden lg:table-cell">
+                            Date
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.map((order) => (
+                          <tr
+                            key={order.id}
+                            className="border-b border-gallery-border last:border-0 hover:bg-gallery-subtle/30 transition-colors"
+                          >
+                            <td className="px-4 py-3 font-mono text-xs text-gallery-text">
+                              {order.orderNumber}
+                            </td>
+                            <td className="px-4 py-3 text-gallery-text">
+                              {order.firstName} {order.lastName}
+                            </td>
+                            <td className="px-4 py-3 text-gallery-muted hidden md:table-cell">
+                              {order.email}
+                            </td>
+                            <td className="px-4 py-3 text-gallery-muted hidden lg:table-cell">
+                              {order.city}, {order.country}
+                            </td>
+                            <td className="px-4 py-3 text-right text-gallery-text font-medium">
+                              ${order.subtotal.toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3 hidden sm:table-cell">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] uppercase tracking-widest font-medium ${
+                                order.status === "pending"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : order.status === "confirmed"
+                                  ? "bg-blue-100 text-blue-700"
+                                  : order.status === "shipped"
+                                  ? "bg-purple-100 text-purple-700"
+                                  : "bg-green-100 text-green-700"
+                              }`}>
+                                {order.status}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-gallery-muted text-xs hidden lg:table-cell">
+                              {new Date(order.createdAt).toLocaleDateString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  {orders.length === 0 && (
+                    <div className="py-12 text-center text-gallery-muted text-sm">
+                      No orders yet.
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </>

@@ -2,10 +2,33 @@
 
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { getOrderByNumber } from "@/data/orders";
+import type { Order } from "@/types";
 
 export default function ConfirmationPage() {
   const { isCheckoutComplete, orderNumber, resetCheckout } = useCart();
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loadingOrder, setLoadingOrder] = useState(true);
+
+  // Fetch the full order (with items) from the database using the order number
+  useEffect(() => {
+    async function fetchOrder() {
+      if (!orderNumber) {
+        setLoadingOrder(false);
+        return;
+      }
+      const result = await getOrderByNumber(orderNumber);
+      setOrder(result);
+      setLoadingOrder(false);
+    }
+
+    if (isCheckoutComplete && orderNumber) {
+      fetchOrder();
+    } else {
+      setLoadingOrder(false);
+    }
+  }, [isCheckoutComplete, orderNumber]);
 
   // Reset checkout state when leaving this page
   useEffect(() => {
@@ -37,7 +60,7 @@ export default function ConfirmationPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 text-center">
-      <div className="max-w-lg">
+      <div className="max-w-lg w-full">
         {/* Checkmark icon */}
         <div className="w-20 h-20 rounded-full border-2 border-gallery-text flex items-center justify-center mx-auto mb-8">
           <svg
@@ -57,13 +80,48 @@ export default function ConfirmationPage() {
           Thank You
         </h1>
         <p className="text-gallery-muted text-lg mb-2">
-          Your order has been placed successfully.
+          Your order has been placed and saved successfully.
         </p>
         {orderNumber && (
           <p className="text-sm text-gallery-muted mb-8">
             Order number:{" "}
             <span className="text-gallery-text font-medium">{orderNumber}</span>
           </p>
+        )}
+
+        {/* Order items — fetched live from the database */}
+        {!loadingOrder && order?.items && order.items.length > 0 && (
+          <div className="bg-gallery-subtle p-6 rounded-sm mb-6 text-left">
+            <h2 className="text-xs uppercase tracking-widest text-gallery-muted mb-4">
+              Items Purchased
+            </h2>
+            <div className="space-y-3">
+              {order.items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex justify-between text-sm"
+                >
+                  <span className="text-gallery-text">
+                    {item.title}
+                    {item.quantity > 1 && (
+                      <span className="text-gallery-muted ml-1">
+                        × {item.quantity}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-gallery-text font-medium">
+                    ${(item.price * item.quantity).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+              <div className="border-t border-gallery-border pt-3 flex justify-between text-sm font-medium">
+                <span className="text-gallery-text">Total</span>
+                <span className="font-serif text-gallery-text">
+                  ${order.subtotal.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
         )}
 
         <div className="bg-gallery-subtle p-6 rounded-sm mb-10 text-left">

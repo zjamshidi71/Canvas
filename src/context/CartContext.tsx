@@ -94,7 +94,7 @@ interface CartContextType {
   removeItem: (artworkId: string) => void;
   updateQuantity: (artworkId: string, quantity: number) => void;
   clearCart: () => void;
-  completeCheckout: () => void;
+  completeCheckout: (orderNumber: string) => void;  // order number comes from DB, not client
   resetCheckout: () => void;
   totalItems: number;
   subtotal: number;
@@ -144,8 +144,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     () => dispatch({ type: "CLEAR_CART" }),
     []
   );
-  const completeCheckout = useCallback(() => {
-    const orderNumber = `CNV-${Date.now().toString(36).toUpperCase()}`;
+  const completeCheckout = useCallback((orderNumber: string) => {
+    // The order number comes from the database — we receive it after a
+    // successful createOrder() call, ensuring the DB is the source of truth.
     dispatch({ type: "COMPLETE_CHECKOUT", orderNumber });
   }, []);
   const resetCheckout = useCallback(
