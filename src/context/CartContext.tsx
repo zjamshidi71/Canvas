@@ -98,6 +98,7 @@ interface CartContextType {
   resetCheckout: () => void;
   totalItems: number;
   subtotal: number;
+  hydrated: boolean;  // true once the cart has been loaded from localStorage
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -174,6 +175,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         resetCheckout,
         totalItems,
         subtotal,
+        hydrated,
       }}
     >
       {children}

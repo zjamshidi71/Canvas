@@ -7,9 +7,20 @@ import { getOrderByNumber } from "@/data/orders";
 import type { Order } from "@/types";
 
 export default function ConfirmationPage() {
-  const { isCheckoutComplete, orderNumber, resetCheckout } = useCart();
+  const { isCheckoutComplete, orderNumber, resetCheckout, completeCheckout, hydrated } =
+    useCart();
   const [order, setOrder] = useState<Order | null>(null);
   const [loadingOrder, setLoadingOrder] = useState(true);
+
+  // Returning from Stripe: the URL looks like /checkout/confirmation?order=CNV-...
+  // We wait until the cart has loaded from localStorage (hydrated), otherwise
+  // the saved cart would overwrite this update. Then we mark checkout complete,
+  // which also clears the cart.
+  useEffect(() => {
+    if (!hydrated) return;
+    const orderParam = new URLSearchParams(window.location.search).get("order");
+    if (orderParam && orderParam !== orderNumber) completeCheckout(orderParam);
+  }, [hydrated, orderNumber, completeCheckout]);
 
   // Fetch the full order (with items) from the database using the order number
   useEffect(() => {

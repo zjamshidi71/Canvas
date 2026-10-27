@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
@@ -10,9 +9,8 @@ import { getArtistById } from "@/data/artists";
 import { createOrder } from "@/data/orders";
 
 export default function CheckoutPage() {
-  const { items, subtotal, completeCheckout } = useCart();
+  const { items, subtotal } = useCart();
   const { user } = useAuth();
-  const router = useRouter();
   const [artistNames, setArtistNames] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
@@ -94,10 +92,25 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Success — the order is now saved in the database.
-    // Pass the real order number (from the DB) to the cart context.
-    completeCheckout(result.order.orderNumber);
-    router.push("/checkout/confirmation");
+    // Success — the order is saved as "pending". Now ask OUR server to
+    // create a Stripe Checkout Session. We only send the order number;
+    // the server looks up the real prices itself (never trust the client).
+    const res = await fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ orderNumber: result.order.orderNumber }),
+    });
+    const { url, error } = await res.json().catch(() => ({}));
+
+    if (!res.ok || !url) {
+      setSubmitError(error ?? "Could not start payment. Please try again.");
+      setSubmitting(false);
+      return;
+    }
+
+    // Leave our site and go to Stripe's hosted payment page.
+    // The cart is NOT cleared yet — if the customer cancels, it's still there.
+    window.location.href = url;
   };
 
   if (items.length === 0) {
@@ -224,14 +237,15 @@ export default function CheckoutPage() {
                 </div>
               )}
               <p className="text-sm text-gallery-muted mb-4">
-                This is a demo checkout — no payment will be processed.
+                You&apos;ll be redirected to Stripe to pay securely. Test card:
+                4242 4242 4242 4242.
               </p>
               <button
                 type="submit"
                 disabled={submitting}
                 className="w-full py-4 bg-gallery-text text-white text-sm uppercase tracking-widest hover:bg-gallery-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Saving order…" : "Place Order"}
+                {submitting ? "Redirecting to payment…" : "Continue to Payment"}
               </button>
             </div>
           </form>
