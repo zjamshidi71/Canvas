@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+import { sendOrderConfirmationEmail } from "@/lib/email";
 
 // ---------------------------------------------------------------------------
 // POST /api/webhooks/stripe
@@ -36,15 +37,35 @@ export async function POST(request: Request) {
     const orderNumber = session.metadata?.orderNumber;
 
     if (session.payment_status === "paid" && orderNumber) {
-      const { error } = await getSupabaseAdmin()
+      // Only update orders that are still "pending". Stripe can deliver the
+      // same webhook more than once — this makes the handler idempotent, so
+      // a retry never sends the customer a second email.
+      const { data: order, error } = await getSupabaseAdmin()
         .from("orders")
         .update({ status: "confirmed" })
-        .eq("order_number", orderNumber);
+        .eq("order_number", orderNumber)
+        .eq("status", "pending")
+        .select("order_number, first_name, email, order_items(title, price, quantity)")
+        .maybeSingle();
 
       // Returning a 500 tells Stripe to retry the webhook later.
       if (error) {
         console.error("Failed to confirm order:", error);
         return new Response("Database error", { status: 500 });
+      }
+
+      // order is null if it was already confirmed by an earlier delivery.
+      if (order) {
+        await sendOrderConfirmationEmail({
+          orderNumber: order.order_number,
+          firstName: order.first_name,
+          email: order.email,
+          // amount_total is what Stripe actually charged, in cents.
+          total: (session.amount_total ?? 0) / 100,
+          items: (order.order_items as { title: string; price: number; quantity: number }[]).map(
+            (item) => ({ ...item, price: Number(item.price) })
+          ),
+        });
       }
     }
   }
