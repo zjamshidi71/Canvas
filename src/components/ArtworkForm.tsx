@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Artwork } from "@/types";
 import { ArtworkInput } from "@/data/artworks";
 import ImageUploadField from "@/components/ImageUploadField";
+import { useAuth } from "@/context/AuthContext";
 
 // ---------------------------------------------------------------------------
 // Props:
@@ -49,6 +50,39 @@ export default function ArtworkForm({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // ---- AI assist: generate a description + tags from the uploaded image ----
+  // The browser never talks to the AI provider directly — it calls OUR API
+  // route, which holds the secret key. We send the user's Supabase access
+  // token so the server knows who is asking.
+  const { session } = useAuth();
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    setError(null);
+    setGenerating(true);
+    try {
+      const res = await fetch("/api/ai/describe", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token ?? ""}`,
+        },
+        body: JSON.stringify({ imageUrl, title, medium }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      setDescription(data.description);
+      // Merge AI tags with any collections the artist already typed
+      const existing = collections.split(",").map((c) => c.trim()).filter(Boolean);
+      setCollections([...new Set([...existing, ...data.tags])].join(", "));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI generation failed.");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -220,9 +254,20 @@ export default function ArtworkForm({
 
       {/* Description */}
       <div>
-        <label htmlFor="artwork-description" className={labelClass}>
-          Description
-        </label>
+        <div className="flex items-center justify-between mb-2">
+          <label htmlFor="artwork-description" className={`${labelClass} mb-0`}>
+            Description
+          </label>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            disabled={!imageUrl || generating}
+            title={imageUrl ? "Write a description and tags from the image" : "Upload an image first"}
+            className="text-xs uppercase tracking-widest text-gallery-accent hover:text-gallery-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {generating ? "Generating…" : "✨ Generate with AI"}
+          </button>
+        </div>
         <textarea
           id="artwork-description"
           value={description}
