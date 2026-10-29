@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       output: Output.object({ schema: ArtworkInsights }),
       instructions:
         "You are a curator for Canvas, an online art gallery. Write warm, specific, " +
-        "honest copy based only on what you can see. Never invent the artist's biography.",
+        "honest copy based only on what you can see. Never invent the artist's biography. Add a story for that painting as well.",
       messages: [
         {
           role: "user",
