@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import ArtworkForm from "@/components/ArtworkForm";
 import { createArtwork, ArtworkInput } from "@/data/artworks";
+import { ensureArtistProfile } from "@/data/artists";
 
 // ---------------------------------------------------------------------------
 // /artwork/new — Protected page where a logged-in user can list a new artwork
@@ -49,6 +50,12 @@ export default function NewArtworkPage() {
   // ---- Handler: receive form data, call createArtwork, redirect ----
   const handleCreate = async (data: ArtworkInput) => {
     setGlobalError(null);
+
+    // Make sure this user has an artist profile (first listing creates one)
+    const profile = await ensureArtistProfile(user);
+    if (profile.error) {
+      throw new Error(profile.error);
+    }
 
     // Use the current user's ID as the artistId
     const result = await createArtwork({

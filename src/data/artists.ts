@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase";
 import { Artist } from "@/types";
+import type { User } from "@supabase/supabase-js";
 
 // Map Supabase row (snake_case) to our TypeScript type (camelCase)
 function mapArtist(row: Record<string, unknown>): Artist {
@@ -30,6 +31,37 @@ export async function getArtistById(id: string): Promise<Artist | undefined> {
     .single();
   if (error || !data) return undefined;
   return mapArtist(data);
+}
+
+// ---------------------------------------------------------------------------
+// Every artwork must belong to a row in the artists table (artist_id is a
+// foreign key). Logged-in users use their auth user ID as their artist ID,
+// so the first time someone lists an artwork we create their artist profile.
+// ---------------------------------------------------------------------------
+export async function ensureArtistProfile(
+  user: User
+): Promise<{ error?: string }> {
+  if (await getArtistById(user.id)) return {};
+
+  const name =
+    (user.user_metadata?.full_name as string | undefined) ||
+    user.email?.split("@")[0] ||
+    "New Artist";
+  const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${user.id.slice(0, 4)}`;
+
+  const { error } = await supabase.from("artists").insert({
+    id: user.id,
+    slug,
+    name,
+    bio: "",
+    photo_url: "",
+    speciality: "",
+  });
+  if (error) {
+    console.error("Error creating artist profile:", error);
+    return { error: error.message };
+  }
+  return {};
 }
 
 export async function getArtistBySlug(

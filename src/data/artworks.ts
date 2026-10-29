@@ -103,6 +103,9 @@ export async function createArtwork(
   const { data, error } = await supabase
     .from("artworks")
     .insert({
+      // The artworks.id column is TEXT with no database default (seed rows
+      // use "art-1", "art-2", …), so we generate a unique id here.
+      id: `art-${crypto.randomUUID()}`,
       slug,
       title: input.title,
       artist_id: input.artistId,
