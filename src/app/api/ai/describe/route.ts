@@ -45,7 +45,15 @@ export async function POST(request: Request) {
     return Response.json({ error: "Upload an image first." }, { status: 400 });
   }
 
-  // ---- 3. Ask the model ----
+  // ---- 3. Look up the exact image type (image/png, image/jpeg, …) ----
+  // Providers need the precise media type to know how to read the file.
+  const head = await fetch(imageUrl, { method: "HEAD" });
+  const mediaType = head.headers.get("content-type") ?? "";
+  if (!head.ok || !mediaType.startsWith("image/")) {
+    return Response.json({ error: "That file doesn't look like an image." }, { status: 400 });
+  }
+
+  // ---- 4. Ask the model ----
   try {
     const { output } = await generateText({
       model: getModel(),
@@ -61,7 +69,7 @@ export async function POST(request: Request) {
               type: "text",
               text: `Describe this artwork. Title: ${title || "Untitled"}. Medium: ${medium || "unknown"}.`,
             },
-            { type: "file", mediaType: "image", data: { type: "url", url: new URL(imageUrl) } },
+            { type: "file", mediaType, data: { type: "url", url: new URL(imageUrl) } },
           ],
         },
       ],
