@@ -9,6 +9,7 @@ import { getArtists } from "@/data/artists";
 import { getDashboardStats, DashboardStats } from "@/data/dashboard";
 import { getAllOrders } from "@/data/orders";
 import { Artwork, Artist, Order } from "@/types";
+import MarketPulse from "@/components/MarketPulse";
 
 // ---------------------------------------------------------------------------
 // Hard-coded admin email(s). In production you'd use a "role" column in your
@@ -24,7 +25,7 @@ export default function AdminPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "artworks" | "artists" | "orders">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "artworks" | "artists" | "orders" | "insights">("overview");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<Artwork | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -141,7 +142,7 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-8 border-b border-gallery-border">
-          {(["overview", "artworks", "artists", "orders"] as const).map((tab) => (
+          {(["overview", "artworks", "artists", "orders", "insights"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -289,6 +290,12 @@ export default function AdminPage() {
                       className="py-3 px-4 border border-gallery-border text-center text-sm text-gallery-text uppercase tracking-widest hover:bg-gallery-subtle transition-colors"
                     >
                       View Orders
+                    </button>
+                    <button
+                      onClick={() => setActiveTab("insights")}
+                      className="py-3 px-4 border border-gallery-border text-center text-sm text-gallery-text uppercase tracking-widest hover:bg-gallery-subtle transition-colors sm:col-span-3"
+                    >
+                      ✦ Art Market Pulse
                     </button>
                   </div>
                 </div>
@@ -541,6 +548,11 @@ export default function AdminPage() {
                   )}
                 </div>
               </div>
+            )}
+
+            {/* ====== INSIGHTS TAB ====== */}
+            {activeTab === "insights" && (
+              <MarketPulse />
             )}
           </>
         )}

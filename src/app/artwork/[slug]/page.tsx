@@ -11,6 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/context/AuthContext";
 import ArtworkCard from "@/components/ArtworkCard";
 import StarRating from "@/components/StarRating";
+import ArtHistoryCompanion from "@/components/ArtHistoryCompanion";
 import { Artwork, Artist } from "@/types";
 
 export default function ArtworkDetailPage({
@@ -215,6 +216,13 @@ export default function ArtworkDetailPage({
                 {artwork.description}
               </p>
             </div>
+
+            {/* Art History Companion — powered by the Art Institute of Chicago API */}
+            <ArtHistoryCompanion
+              title={artwork.title}
+              medium={artwork.medium}
+              description={artwork.description}
+            />
           </div>
         </div>
 
