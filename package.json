@@ -10,6 +10,9 @@
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.152",
+    "@capacitor/android": "8.6.0",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
     "@openrouter/ai-sdk-provider": "3.1.0",
     "@supabase/supabase-js": "^2.117.1",
     "ai": "7.0.148",
@@ -20,6 +23,7 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
