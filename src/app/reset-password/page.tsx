@@ -10,9 +10,9 @@ import { supabase } from "@/lib/supabase";
 //
 // Supabase sends the user here after they click the password-reset email link.
 // The URL contains a recovery token that the Supabase client automatically
-// detects via onAuthStateChange → PASSWORD_RECOVERY.
+// turns into a (temporary) signed-in session.
 //
-// We wait for that event, then show a "Set new password" form.
+// Once that session exists we show a "Set new password" form.
 // On submit we call supabase.auth.updateUser() — Supabase validates the
 // recovery session server-side and updates the password.
 // ---------------------------------------------------------------------------
@@ -27,25 +27,44 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Supabase fires PASSWORD_RECOVERY when it detects the recovery token in
-    // the URL hash/query. We listen for it and flip to "ready" state.
+    // If Supabase rejected the link, it tells us in the URL, e.g.
+    //   /reset-password#error=access_denied&error_code=otp_expired
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const queryParams = new URLSearchParams(window.location.search);
+    if (hashParams.get("error") || queryParams.get("error")) {
+      // Defer the state update so it doesn't run synchronously in the effect
+      queueMicrotask(() => setPageState("expired"));
+      return;
+    }
+
+    // The Supabase client reads the recovery token from the URL as soon as
+    // the app loads — often BEFORE this page mounts. So the PASSWORD_RECOVERY
+    // event may already have fired and we'd miss it.
+    //
+    // Instead we ask for the current session. getSession() waits until
+    // Supabase has finished processing the link, so:
+    //   • session exists → the link was valid → show the form
+    //   • no session     → the link was invalid or already used
+    let cancelled = false;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return;
+      setPageState((prev) =>
+        prev === "waiting" ? (session ? "ready" : "expired") : prev
+      );
+    });
+
+    // Still listen for the event in case it arrives after getSession().
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event) => {
-        if (event === "PASSWORD_RECOVERY") {
-          setPageState("ready");
+      (event, session) => {
+        if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+          setPageState((prev) => (prev === "expired" || prev === "waiting" ? "ready" : prev));
         }
       }
     );
 
-    // If the page loads without a valid recovery token (e.g. the link expired
-    // or was already used), mark it as expired after a short grace period.
-    const timer = setTimeout(() => {
-      setPageState((prev) => (prev === "waiting" ? "expired" : prev));
-    }, 3000);
-
     return () => {
+      cancelled = true;
       subscription.unsubscribe();
-      clearTimeout(timer);
     };
   }, []);
 
