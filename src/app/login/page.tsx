@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 
-type Tab = "signin" | "signup";
+type Tab = "signin" | "signup" | "forgot";
 
 export default function LoginPage() {
   const [activeTab, setActiveTab] = useState<Tab>("signin");
@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const { signIn, signUp, signInWithGoogle, signInWithGitHub } = useAuth();
+  const { signIn, signUp, signInWithGoogle, signInWithGitHub, resetPassword } = useAuth();
   const router = useRouter();
 
   const resetForm = () => {
@@ -87,11 +87,14 @@ export default function LoginPage() {
           <p className="text-gallery-muted text-sm mt-2">
             {activeTab === "signin"
               ? "Welcome back. Sign in to your account."
-              : "Create an account to start collecting."}
+              : activeTab === "signup"
+              ? "Create an account to start collecting."
+              : "Enter your email and we'll send you a reset link."}
           </p>
         </div>
 
         {/* Tabs */}
+        {activeTab !== "forgot" && (
         <div className="flex border-b border-gallery-border mb-8">
           <button
             id="tab-signin"
@@ -122,6 +125,7 @@ export default function LoginPage() {
             )}
           </button>
         </div>
+        )}
 
         {/* Messages */}
         {error && (
@@ -136,6 +140,62 @@ export default function LoginPage() {
         )}
 
         {/* Form */}
+        {activeTab === "forgot" ? (
+          // ── Forgot Password Form ───────────────────────────────────────────
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setError(null);
+              setSuccess(null);
+              setSubmitting(true);
+              const { error: err } = await resetPassword(email);
+              if (err) {
+                setError(err);
+              } else {
+                setSuccess(
+                  "Reset link sent! Check your inbox (and spam folder) for a password reset email."
+                );
+              }
+              setSubmitting(false);
+            }}
+            className="space-y-5"
+          >
+            <div>
+              <label
+                htmlFor="email"
+                className="block text-xs uppercase tracking-widest text-gallery-muted mb-2"
+              >
+                Email Address
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                required
+                className="w-full px-4 py-3 border border-gallery-border rounded-sm bg-transparent text-gallery-text placeholder:text-gallery-muted/50 focus:outline-none focus:border-gallery-text text-sm transition-colors"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full py-4 bg-gallery-text text-white text-sm uppercase tracking-widest hover:bg-gallery-accent-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+            >
+              {submitting ? "Sending…" : "Send Reset Link"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => switchTab("signin")}
+              className="w-full text-center text-xs uppercase tracking-widest text-gallery-muted hover:text-gallery-text transition-colors"
+            >
+              ← Back to Sign In
+            </button>
+          </form>
+        ) : (
+          // ── Sign In / Sign Up Form ─────────────────────────────────────────
         <form onSubmit={handleSubmit} className="space-y-5">
           {activeTab === "signup" && (
             <div>
@@ -176,12 +236,28 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label
-              htmlFor="password"
-              className="block text-xs uppercase tracking-widest text-gallery-muted mb-2"
-            >
-              Password
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label
+                htmlFor="password"
+                className="block text-xs uppercase tracking-widest text-gallery-muted"
+              >
+                Password
+              </label>
+              {/* Forgot password — only shown on Sign In tab */}
+              {activeTab === "signin" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setSuccess(null);
+                    setActiveTab("forgot");
+                  }}
+                  className="text-xs text-gallery-muted hover:text-gallery-text underline underline-offset-2 transition-colors"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
             <input
               id="password"
               type="password"
@@ -208,7 +284,10 @@ export default function LoginPage() {
               : "Create Account"}
           </button>
         </form>
+        )}
 
+        {/* Divider + Social logins — hidden on forgot-password view */}
+        {activeTab !== "forgot" && (<>
         {/* Divider */}
         <div className="flex items-center gap-4 my-8">
           <div className="flex-1 h-px bg-gallery-border" />
@@ -277,6 +356,7 @@ export default function LoginPage() {
             </>
           )}
         </p>
+        </>)}
       </div>
     </div>
   );
