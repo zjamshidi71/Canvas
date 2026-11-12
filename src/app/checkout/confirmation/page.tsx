@@ -5,6 +5,7 @@ import { useCart } from "@/context/CartContext";
 import { useEffect, useState } from "react";
 import { getOrderByNumber } from "@/data/orders";
 import type { Order } from "@/types";
+import { notify } from "@/lib/native";
 
 export default function ConfirmationPage() {
   const { isCheckoutComplete, orderNumber, resetCheckout, completeCheckout, hydrated } =
@@ -19,7 +20,14 @@ export default function ConfirmationPage() {
   useEffect(() => {
     if (!hydrated) return;
     const orderParam = new URLSearchParams(window.location.search).get("order");
-    if (orderParam && orderParam !== orderNumber) completeCheckout(orderParam);
+    if (orderParam && orderParam !== orderNumber) {
+      completeCheckout(orderParam);
+      // Phone app only: show an "order confirmed" notification.
+      // In a normal browser notify() does nothing.
+      notify("Order confirmed", `Thank you! Your order ${orderParam} has been placed.`).catch(
+        () => {} // a notification failing should never break the page
+      );
+    }
   }, [hydrated, orderNumber, completeCheckout]);
 
   // Fetch the full order (with items) from the database using the order number

@@ -11,8 +11,11 @@
   "dependencies": {
     "@ai-sdk/react": "4.0.152",
     "@capacitor/android": "8.6.0",
+    "@capacitor/camera": "8.2.6",
     "@capacitor/core": "8.6.0",
+    "@capacitor/filesystem": "8.1.5",
     "@capacitor/ios": "8.6.0",
+    "@capacitor/local-notifications": "8.3.1",
     "@openrouter/ai-sdk-provider": "3.1.0",
     "@supabase/supabase-js": "^2.117.1",
     "ai": "7.0.148",

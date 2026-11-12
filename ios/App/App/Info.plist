@@ -43,6 +43,12 @@
       </array>
     </dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Canvas uses your camera so you can photograph artwork to upload.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Canvas lets you choose artwork photos from your library to upload.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Canvas can save photos you take to your library.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useSyncExternalStore } from "react";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { isNativeApp, pickPhoto, type PhotoSource } from "@/lib/native";
 
 // ---------------------------------------------------------------------------
 // Props:
@@ -17,6 +18,9 @@ import { supabase } from "@/lib/supabase";
 //   parent what the new URL is and lets the parent decide what to do.
 //   This is the standard React "lifting state up" pattern.
 // ---------------------------------------------------------------------------
+// "Are we in the phone app?" never changes, so there's nothing to subscribe to.
+const noopSubscribe = () => () => {};
+
 interface ImageUploadFieldProps {
   currentUrl: string;
   onUploadComplete: (publicUrl: string) => void;
@@ -36,9 +40,36 @@ export default function ImageUploadField({
   // programmatically triggers the file picker without any visible input.
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Inside the phone app we show "Take Photo" / "Choose from Library"
+  // buttons that use the native camera.
+  // useSyncExternalStore returns false on the server and the real answer on
+  // the client, without a hydration mismatch.
+  const isNative = useSyncExternalStore(
+    noopSubscribe,
+    isNativeApp, // client
+    () => false  // server
+  );
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (file) uploadFile(file);
+  };
+
+  // Native camera / gallery → File → same upload flow as the file picker
+  const handleNativePick = async (source: PhotoSource) => {
+    try {
+      const file = await pickPhoto(source);
+      if (file) uploadFile(file);
+    } catch {
+      setError(
+        source === "camera"
+          ? "Couldn't open the camera. Check the app's camera permission in Settings."
+          : "Couldn't open your photos. Check the app's photo permission in Settings."
+      );
+    }
+  };
+
+  const uploadFile = async (file: File) => {
 
     // ---- Client-side validation ----
     // These checks run immediately in the browser, before any network call.
@@ -130,7 +161,30 @@ export default function ImageUploadField({
         </div>
       )}
 
-      {/* Upload trigger button */}
+      {/* Phone app: native camera + photo library buttons */}
+      {isNative && (
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => handleNativePick("camera")}
+            disabled={uploading}
+            className="py-3 border-2 border-dashed border-gallery-border text-gallery-muted text-sm hover:border-gallery-text hover:text-gallery-text transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-sm"
+          >
+            Take Photo
+          </button>
+          <button
+            type="button"
+            onClick={() => handleNativePick("gallery")}
+            disabled={uploading}
+            className="py-3 border-2 border-dashed border-gallery-border text-gallery-muted text-sm hover:border-gallery-text hover:text-gallery-text transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-sm"
+          >
+            Choose from Library
+          </button>
+        </div>
+      )}
+
+      {/* Browser: upload trigger button */}
+      {!isNative && (
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -143,6 +197,7 @@ export default function ImageUploadField({
           ? "↑ Change Image"
           : "↑ Upload Image"}
       </button>
+      )}
 
       {/* Hidden native file input */}
       <input
