@@ -55,6 +55,14 @@ export interface RunResult {
   log: LogEntry[];
 }
 
+type TasteItem = ArtworkRow & { relation: "saved" | "bought" };
+
+const tasteLines = (taste: TasteItem[]) =>
+  taste.map((a) => `[${a.relation.toUpperCase()}] ${describe(a)}`).join("\n");
+
+const HISTORY_RULE =
+  "Works marked [SAVED] were only saved (liked), NOT bought — never say the collector owns them or has them in their collection.";
+
 const describe = (a: ArtworkRow) =>
   `${a.id}: "${a.title}" by ${a.artists?.name ?? "unknown"} — ${a.medium}, $${a.price}, ${a.year}. ` +
   `Collections: ${(a.collections ?? []).join(", ") || "none"}. ${a.description.slice(0, 160)}`;
@@ -75,7 +83,10 @@ async function scout(collector: Collector, log: LogEntry[]) {
     (orders ?? []).flatMap((o) => (o.order_items as { artwork_id: string }[]).map((i) => i.artwork_id))
   );
   const sentIds = new Set((sent ?? []).map((r) => r.artwork_id));
-  const taste = all.filter((a) => savedIds.has(a.id) || purchasedIds.has(a.id));
+  // Label each work: the AI must never say "you own" about a work that was only saved
+  const taste = all
+    .filter((a) => savedIds.has(a.id) || purchasedIds.has(a.id))
+    .map((a) => ({ ...a, relation: purchasedIds.has(a.id) ? ("bought" as const) : ("saved" as const) }));
 
   // Code does the rules: never re-recommend saved, bought, or already-sent works
   const candidates = all.filter((a) => !savedIds.has(a.id) && !purchasedIds.has(a.id) && !sentIds.has(a.id));
@@ -98,9 +109,10 @@ async function scout(collector: Collector, log: LogEntry[]) {
     }),
     instructions:
       "You are the Scout for Canvas, an online art gallery. Pick the 3 candidate artworks that best fit the " +
-      "collector's taste, based on medium, style, price range and artist. Only use IDs from the candidate list.",
+      "collector's taste, based on medium, style, price range and artist. Only use IDs from the candidate list. " +
+      HISTORY_RULE,
     prompt:
-      `Collector ${collector.name} saved or bought:\n${taste.map(describe).join("\n")}\n\n` +
+      `Collector ${collector.name}'s history:\n${tasteLines(taste)}\n\n` +
       `Candidates:\n${candidates.map(describe).join("\n")}`,
   });
 
@@ -126,16 +138,17 @@ const DraftSchema = z.object({
 });
 type Draft = z.infer<typeof DraftSchema>;
 
-async function writer(collector: Collector, taste: ArtworkRow[], picks: { artwork: ArtworkRow; reason: string }[], feedback: string[]) {
+async function writer(collector: Collector, taste: TasteItem[], picks: { artwork: ArtworkRow; reason: string }[], feedback: string[]) {
   const { output } = await generateText({
     model: getModel(),
     output: Output.object({ schema: DraftSchema }),
     instructions:
       "You are the Writer for Canvas, an online art gallery. Write a short, warm, personal recommendation email. " +
       "Write ONLY the words: never include prices, links, or numbers — the system adds those from the database. " +
-      "Only state facts given to you. Be friendly, never pushy.",
+      "Only state facts given to you. Be friendly, never pushy. " +
+      HISTORY_RULE,
     prompt:
-      `Collector: ${collector.name}\nThey saved: ${taste.map((a) => `"${a.title}"`).join(", ")}\n\n` +
+      `Collector: ${collector.name}\nHistory:\n${taste.map((a) => `[${a.relation.toUpperCase()}] "${a.title}"`).join("\n")}\n\n` +
       `Recommended works (write one blurb for EACH, using these exact artworkIds):\n` +
       picks.map((p) => `${describe(p.artwork)}\nScout's reason: ${p.reason}`).join("\n\n") +
       (feedback.length ? `\n\nThe Checker rejected your last draft. Fix these issues:\n- ${feedback.join("\n- ")}` : ""),
@@ -144,7 +157,7 @@ async function writer(collector: Collector, taste: ArtworkRow[], picks: { artwor
 }
 
 // ======================== 3. CHECKER =======================================
-async function checker(draft: Draft, collector: Collector, picks: { artwork: ArtworkRow }[]): Promise<string[]> {
+async function checker(draft: Draft, collector: Collector, taste: TasteItem[], picks: { artwork: ArtworkRow }[]): Promise<string[]> {
   const issues: string[] = [];
   const pickIds = new Set(picks.map((p) => p.artwork.id));
 
@@ -164,9 +177,11 @@ async function checker(draft: Draft, collector: Collector, picks: { artwork: Art
     }),
     instructions:
       "You are the Checker for Canvas. Compare the email draft to the FACTS. Reject it if it invents facts " +
-      "(artist biography, sizes, awards, scarcity), uses the wrong name, or is pushy (fake urgency). Be strict but brief.",
+      "(artist biography, sizes, awards, scarcity), uses the wrong name, or is pushy (fake urgency). " +
+      HISTORY_RULE + " Be strict but brief.",
     prompt:
-      `FACTS\nCollector: ${collector.name}\n${picks.map((p) => describe(p.artwork)).join("\n")}\n\n` +
+      `FACTS\nCollector: ${collector.name}\nHistory:\n${tasteLines(taste)}\n\nRecommended:\n` +
+      `${picks.map((p) => describe(p.artwork)).join("\n")}\n\n` +
       `DRAFT\n${JSON.stringify(draft, null, 2)}`,
   });
   return output.approved ? [] : output.issues.length ? output.issues : ["Rejected without a reason"];
@@ -266,7 +281,7 @@ export async function runForCollector(collector: Collector, { dryRun }: { dryRun
     for (let attempt = 1; attempt <= MAX_WRITER_ATTEMPTS; attempt++) {
       const candidate = await writer(collector, taste, picks, feedback);
       log.push({ agent: "Writer", summary: `Draft ${attempt}: "${candidate.subject}"`, detail: candidate });
-      feedback = await checker(candidate, collector, picks);
+      feedback = await checker(candidate, collector, taste, picks);
       if (!feedback.length) {
         log.push({ agent: "Checker", summary: `Approved draft ${attempt}` });
         draft = candidate;
