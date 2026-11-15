@@ -21,7 +21,7 @@ export interface OrderEmailData {
 
 // Artwork titles and names come from users. Escape them so nobody can inject
 // HTML (fake links, hidden content) into an email we send.
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -29,7 +29,7 @@ function escapeHtml(text: string): string {
     .replace(/"/g, "&quot;");
 }
 
-const money = (amount: number) =>
+export const money = (amount: number) =>
   amount.toLocaleString("en-CA", { style: "currency", currency: "CAD" });
 
 function buildOrderEmailHtml(order: OrderEmailData): string {
@@ -67,12 +67,9 @@ function buildOrderEmailHtml(order: OrderEmailData): string {
     </div>`;
 }
 
-export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise<void> {
+export async function sendEmail(to: string, subject: string, html: string): Promise<{ error?: string }> {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn("RESEND_API_KEY is not set — skipping confirmation email.");
-    return;
-  }
+  if (!apiKey) return { error: "RESEND_API_KEY is not set" };
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -82,13 +79,19 @@ export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise
     },
     body: JSON.stringify({
       from: process.env.EMAIL_FROM ?? "Canvas <onboarding@resend.dev>",
-      to: order.email,
-      subject: `Your Canvas order ${order.orderNumber} is confirmed`,
-      html: buildOrderEmailHtml(order),
+      to,
+      subject,
+      html,
     }),
   });
+  return res.ok ? {} : { error: `Resend ${res.status}: ${await res.text()}` };
+}
 
-  if (!res.ok) {
-    console.error("Failed to send confirmation email:", res.status, await res.text());
-  }
+export async function sendOrderConfirmationEmail(order: OrderEmailData): Promise<void> {
+  const { error } = await sendEmail(
+    order.email,
+    `Your Canvas order ${order.orderNumber} is confirmed`,
+    buildOrderEmailHtml(order)
+  );
+  if (error) console.error("Failed to send confirmation email:", error);
 }
