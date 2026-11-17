@@ -27,6 +27,17 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // If Supabase rejected the link, it puts the reason in the URL — show it
+    const params = new URLSearchParams(window.location.hash.slice(1) || window.location.search);
+    const linkError = params.get("error_description");
+    if (linkError) {
+      const timer = setTimeout(() => {
+        setError(linkError.replace(/\+/g, " "));
+        setPageState("expired");
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+
     // Supabase fires PASSWORD_RECOVERY when it detects the recovery token in
     // the URL hash/query. We listen for it and flip to "ready" state.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -37,11 +48,18 @@ export default function ResetPasswordPage() {
       }
     );
 
+    // The Supabase client reads the token as soon as the site loads — often
+    // BEFORE this page starts listening, so the event above can be missed.
+    // getSession() waits for that processing, so check it as well.
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setPageState((prev) => (prev === "waiting" ? "ready" : prev));
+    });
+
     // If the page loads without a valid recovery token (e.g. the link expired
     // or was already used), mark it as expired after a short grace period.
     const timer = setTimeout(() => {
       setPageState((prev) => (prev === "waiting" ? "expired" : prev));
-    }, 3000);
+    }, 5000);
 
     return () => {
       subscription.unsubscribe();
@@ -109,6 +127,7 @@ export default function ResetPasswordPage() {
             <div className="px-4 py-5 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-sm">
               This reset link has expired or has already been used. Please
               request a new one.
+              {error && <p className="mt-2 text-xs">Details: {error}</p>}
             </div>
             <Link
               href="/login"
@@ -187,3 +206,4 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
+
