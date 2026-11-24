@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Artwork } from "@/types";
 import { ArtworkInput } from "@/data/artworks";
 import ImageUploadField from "@/components/ImageUploadField";
 import { useAuth } from "@/context/AuthContext";
+import { getVariant, logExperimentEvent } from "@/lib/experiments";
 
 // ---------------------------------------------------------------------------
 // Props:
@@ -58,7 +59,28 @@ export default function ArtworkForm({
   const { session } = useAuth();
   const [generating, setGenerating] = useState(false);
 
+  // ---- A/B test: does the button's wording change how often it's clicked? ----
+  // Variant is assigned client-side only (it depends on localStorage), so we
+  // start with "A" during server rendering and resolve the real variant after
+  // mount — this avoids a server/client mismatch ("hydration error").
+  const [variant, setVariant] = useState<"A" | "B">("A");
+  const loggedView = useRef(false);
+
+  useEffect(() => {
+    // Wrapped in a microtask so the variant lookup (which needs localStorage,
+    // unavailable during server rendering) never runs synchronously inside
+    // the effect body — it still resolves on the very next tick after mount.
+    Promise.resolve().then(() => setVariant(getVariant("generate_button_wording")));
+  }, []);
+
+  useEffect(() => {
+    if (!imageUrl || loggedView.current) return;
+    loggedView.current = true;
+    Promise.resolve().then(() => logExperimentEvent("generate_button_wording", variant, "view"));
+  }, [imageUrl, variant]);
+
   const handleGenerate = async () => {
+    logExperimentEvent("generate_button_wording", variant, "conversion");
     setError(null);
     setGenerating(true);
     try {
@@ -265,7 +287,7 @@ export default function ArtworkForm({
             title={imageUrl ? "Write a description and tags from the image" : "Upload an image first"}
             className="text-xs uppercase tracking-widest text-gallery-accent hover:text-gallery-text transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {generating ? "Generating…" : "✨ Generate with AI"}
+            {generating ? "Generating…" : variant === "A" ? "✨ Generate with AI" : "✨ Write my description for me"}
           </button>
         </div>
         <textarea

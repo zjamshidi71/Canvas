@@ -11,6 +11,7 @@ import { getAllOrders } from "@/data/orders";
 import { Artwork, Artist, Order } from "@/types";
 import MarketPulse from "@/components/MarketPulse";
 import CollectorAgents from "@/components/CollectorAgents";
+import ExperimentResults from "@/components/ExperimentResults";
 
 // ---------------------------------------------------------------------------
 // Hard-coded admin email(s). In production you'd use a "role" column in your
@@ -26,7 +27,7 @@ export default function AdminPage() {
   const [artists, setArtists] = useState<Artist[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "artworks" | "artists" | "orders" | "insights" | "agents">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "artworks" | "artists" | "orders" | "insights" | "agents" | "experiments">("overview");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState<Artwork | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -143,7 +144,7 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div className="flex gap-1 mb-8 border-b border-gallery-border">
-          {(["overview", "artworks", "artists", "orders", "insights", "agents"] as const).map((tab) => (
+          {(["overview", "artworks", "artists", "orders", "insights", "agents", "experiments"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -558,6 +559,9 @@ export default function AdminPage() {
 
             {/* ====== AGENTS TAB ====== */}
             {activeTab === "agents" && <CollectorAgents />}
+
+            {/* ====== EXPERIMENTS TAB ====== */}
+            {activeTab === "experiments" && <ExperimentResults />}
           </>
         )}
       </div>
