@@ -76,7 +76,7 @@ export default function HomePage() {
         <div className="absolute bottom-0 left-0 right-0 p-6 lg:p-16">
           <div className="max-w-7xl mx-auto">
             <p className="text-white/70 text-sm uppercase tracking-widest mb-3">
-              Featured Work
+              ✨ This Week&apos;s Pick
             </p>
             <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl text-white mb-3">
               {featured.title}
